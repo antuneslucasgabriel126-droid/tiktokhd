@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LUMIQ — Melhore seus vídeos</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #080810;
+    --surface:   #10101C;
+    --elevated:  #18182A;
+    --border:    #252538;
+    --accent:    #7C4DFF;
+    --accent2:   #FF4D8D;
+    --accent-glow: rgba(124,77,255,0.25);
+    --text:      #EEEEF8;
+    --muted:     #6060A0;
+    --dim:       #3A3A60;
+    --success:   #4DFFA0;
+    --warn:      #FFD24D;
+    --font-head: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+    --r:         10px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── LAYOUT ── */
+  .app {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .logo {
+    font-family: var(--font-head);
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, #7C4DFF 0%, #FF4D8D 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    flex-shrink: 0;
+  }
+
+  .badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--elevated);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .badge span { color: var(--success); }
+
+  main {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── LEFT: preview ── */
+  .preview-col {
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    padding: 20px;
+    gap: 14px;
+    background: var(--bg);
+    min-height: 0;
+  }
+
+  .drop-zone {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 12px;
+    border: 1.5px dashed var(--dim);
+    border-radius: var(--r);
+    background: var(--surface);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    min-height: 260px;
+    position: relative;
+    overflow: hidden;
+  }
+  .drop-zone:hover, .drop-zone.drag { border-color: var(--accent); background: rgba(124,77,255,0.05); }
+  .drop-zone.has-video { border-style: solid; border-color: var(--border); padding: 0; }
+
+  .drop-icon {
+    width: 56px; height: 56px;
+    background: var(--elevated);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  .drop-label {
+    font-family: var(--font-head);
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--text);
+    text-align: center;
+  }
+  .drop-sub { font-size: 12px; color: var(--muted); text-align: center; }
+  .drop-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 9px 22px;
+    border-radius: 6px;
+    font-family: var(--font-body);
+    font-weight: 500;
+    font-size: 13px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .drop-btn:hover { opacity: 0.85; }
+
+  #videoHidden { display: none; }
+
+  .canvas-wrap {
+    position: relative;
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    background: #000;
+    border-radius: var(--r);
+    overflow: hidden;
+  }
+
+  #previewCanvas {
+    max-width: 100%; max-height: 100%;
+    display: block;
+    border-radius: calc(var(--r) - 2px);
+  }
+
+  /* controls bar under canvas */
+  .playbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 10px 14px;
+  }
+  .play-btn {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border: none; border-radius: 6px;
+    color: #fff; font-size: 12px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+  }
+  .play-btn:hover { opacity: 0.8; }
+  .time-display { font-family: var(--font-head); font-size: 12px; color: var(--muted); flex-shrink: 0; min-width: 80px; }
+  .seek-bar { flex: 1; -webkit-appearance: none; appearance: none; height: 4px; background: var(--dim); border-radius: 2px; cursor: pointer; outline: none; }
+  .seek-bar::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+  .file-info { font-size: 11px; color: var(--dim); flex-shrink: 0; }
+
+  /* ── RIGHT: controls ── */
+  .controls-col {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    overflow-y: auto;
+    padding: 20px 18px;
+    gap: 20px;
+  }
+
+  .section-label {
+    font-family: var(--font-head);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .control-group { display: flex; flex-direction: column; gap: 14px; }
+
+  .slider-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .slider-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .slider-name { font-size: 13px; font-weight: 400; color: var(--text); }
+  .slider-val {
+    font-family: var(--font-head);
+    font-size: 12px;
+    color: var(--accent);
+    min-width: 32px;
+    text-align: right;
+  }
+  .slider-val.zero { color: var(--muted); }
+
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 4px;
+    background: var(--dim);
+    border-radius: 2px;
+    cursor: pointer;
+    outline: none;
+    transition: background 0.1s;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 0 0 3px var(--accent-glow);
+    transition: box-shadow 0.15s;
+  }
+  input[type=range]:hover::-webkit-slider-thumb { box-shadow: 0 0 0 5px var(--accent-glow); }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 4px; border-radius: 2px;
+  }
+
+  .divider { height: 1px; background: var(--border); }
+
+  /* presets */
+  .presets-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .preset-btn {
+    background: var(--elevated);
+    border: 1.5px solid var(--border);
+    border-radius: 7px;
+    padding: 9px 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    font-family: var(--font-body);
+  }
+  .preset-btn:hover { border-color: var(--accent); background: rgba(124,77,255,0.08); }
+  .preset-btn.active { border-color: var(--accent); background: rgba(124,77,255,0.15); }
+  .preset-name { font-size: 12px; font-weight: 500; color: var(--text); }
+  .preset-desc { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  .reset-btn {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px;
+    color: var(--muted);
+    font-family: var(--font-body);
+    font-size: 12px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .reset-btn:hover { color: var(--text); border-color: var(--dim); }
+
+  /* ── EXPORT BAR ── */
+  footer {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 24px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+
+  .export-info { flex: 1; min-width: 140px; }
+  .export-title { font-family: var(--font-head); font-weight: 700; font-size: 13px; }
+  .export-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .quality-select {
+    background: var(--elevated);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 8px 12px;
+    font-family: var(--font-body);
+    font-size: 12px;
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
+  .export-btn {
+    display: flex; align-items: center; gap: 8px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 22px;
+    font-family: var(--font-head);
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    flex-shrink: 0;
+  }
+  .export-btn:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+  .export-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .download-btn {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--success);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-family: var(--font-head);
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+  }
+  .download-btn:hover { opacity: 0.85; }
+  .download-btn.hidden { display: none; }
+
+  /* progress */
+  .progress-wrap {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    display: none;
+  }
+  .progress-wrap.visible { display: flex; }
+  .progress-bar {
+    flex: 1; height: 4px;
+    background: var(--dim); border-radius: 2px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 2px;
+    transition: width 0.3s;
+    width: 0%;
+  }
+  .progress-label { font-size: 11px; color: var(--muted); flex-shrink: 0; min-width: 80px; }
+
+  /* no-video state */
+  .playbar.hidden, .footer-active.hidden { display: none; }
+
+  /* scrollbar */
+  .controls-col::-webkit-scrollbar { width: 4px; }
+  .controls-col::-webkit-scrollbar-track { background: transparent; }
+  .controls-col::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+
+  @media (max-width: 680px) {
+    main { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    .preview-col { border-right: none; border-bottom: 1px solid var(--border); }
+    .controls-col { max-height: 420px; }
+    footer { padding: 12px 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">LUMIQ</div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div class="badge"><span>●</span> Grátis & Privado</div>
+      <div class="badge">Sem upload para servidores</div>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main>
+
+    <!-- LEFT: preview -->
+    <div class="preview-col">
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept="video/*" style="display:none">
+        <video id="videoHidden"></video>
+
+        <!-- empty state -->
+        <div id="emptyState" style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+          <div class="drop-icon">🎬</div>
+          <div class="drop-label">Arraste seu vídeo aqui</div>
+          <div class="drop-sub">MP4, MOV, WebM, AVI · até 2GB</div>
+          <button class="drop-btn" onclick="document.getElementById('fileInput').click()">Escolher arquivo</button>
+        </div>
+
+        <!-- canvas preview -->
+        <div class="canvas-wrap" id="canvasWrap" style="display:none;">
+          <canvas id="previewCanvas"></canvas>
+        </div>
+      </div>
+
+      <!-- playbar -->
+      <div class="playbar" id="playbar" style="display:none;">
+        <button class="play-btn" id="playBtn" onclick="togglePlay()">▶</button>
+        <div class="time-display" id="timeDisplay">0:00 / 0:00</div>
+        <input type="range" class="seek-bar" id="seekBar" min="0" max="100" value="0" step="0.1">
+        <div class="file-info" id="fileInfo">—</div>
+      </div>
+    </div>
+
+    <!-- RIGHT: controls -->
+    <div class="controls-col">
+
+      <div>
+        <div class="section-label">Exposição</div>
+        <div class="control-group">
+          <div class="slider-row">
+            <div class="slider-head">
+              <span class="slider-name">Brilho</span>
+              <span class="slider-val" id="val-brightness">0</span>
+            </div>
+            <input type="range" id="sl-brightness" min="-60" max="60" value="0" step="1">
+          </div>
+          <div class="slider-row">
+            <div class="slider-head">
+              <span class="slider-name">Contraste</span>
+              <span class="slider-val" id="val-contrast">0</span>
+            </div>
+            <input type="range" id="sl-contrast" min="-60" max="60" value="0" step="1">
+          </div>
+          <div class="slider-row">
+            <div class="slider-head">
+              <span class="slider-name">Sombras (Pretos)</span>
+              <span class="slider-val" id="val-blacks">0</span>
+            </div>
+            <input type="range" id="sl-blacks" min="-50" max="50" value="0" step="1">
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div>
+        <div class="section-label">Cor</div>
+        <div class="control-group">
+          <div class="slider-row">
+            <div class="slider-head">
+              <span class="slider-name">Saturação</span>
+              <span class="slider-val" id="val-saturation">0</span>
+            </div>
+            <input type="range" id="sl-saturation" min="-80" max="80" value="0" step="1">
+          </div>
+          <div class="slider-row">
+            <div class="slider-head">
+              <span class="slider-name">Temperatura</span>
+              <span class="slider-val" id="val-temperature">0</span>
+            </div>
+            <input type="range" id="sl-temperature" min="-50" max="50" value="0" step="1">
+          </div>
+          <div class="slider-row">
+            <div class="slider-head">
+              <span class="slider-name">Matiz</span>
+              <span class="slider-val" id="val-hue">0</span>
+            </div>
+            <input type="range" id="sl-hue" min="-180" max="180" value="0" step="1">
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div>
+        <div class="section-label">Detalhe</div>
+        <div class="control-group">
+          <div class="slider-row">
+            <div class="slider-head">
+              <span class="slider-name">Nitidez</span>
+              <span class="slider-val" id="val-sharpness">0</span>
+            </div>
+            <input type="range" id="sl-sharpness" min="0" max="100" value="0" step="1">
+          </div>
+          <div class="slider-row">
+            <div class="slider-head">
+              <span class="slider-name">Vinheta</span>
+              <span class="slider-val" id="val-vignette">0</span>
+            </div>
+            <input type="range" id="sl-vignette" min="0" max="100" value="0" step="1">
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div>
+        <div class="section-label">Predefinições</div>
+        <div class="presets-grid">
+          <button class="preset-btn" onclick="applyPreset('tiktok')">
+            <div class="preset-name">TikTok Viral</div>
+            <div class="preset-desc">Vivo + quente</div>
+          </button>
+          <button class="preset-btn" onclick="applyPreset('instagram')">
+            <div class="preset-name">Instagram Clean</div>
+            <div class="preset-desc">Suave + luminoso</div>
+          </button>
+          <button class="preset-btn" onclick="applyPreset('cinema')">
+            <div class="preset-name">Cinemático</div>
+            <div class="preset-desc">Cores frias + profundidade</div>
+          </button>
+          <button class="preset-btn" onclick="applyPreset('vivid')">
+            <div class="preset-name">Vivid</div>
+            <div class="preset-desc">Alto impacto visual</div>
+          </button>
+          <button class="preset-btn" onclick="applyPreset('night')">
+            <div class="preset-name">Night Mode</div>
+            <div class="preset-desc">Escuro + dramático</div>
+          </button>
+          <button class="preset-btn" onclick="applyPreset('retro')">
+            <div class="preset-name">Retrô</div>
+            <div class="preset-desc">Vintage quente</div>
+          </button>
+        </div>
+        <button class="reset-btn" onclick="resetAll()" style="margin-top:8px;">↺ Resetar tudo</button>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- FOOTER: export -->
+  <footer>
+    <div class="export-info">
+      <div class="export-title">Exportar vídeo</div>
+      <div class="export-sub" id="exportSub">Carregue um vídeo para começar</div>
+    </div>
+    <select class="quality-select" id="qualitySelect">
+      <option value="high">Alta qualidade</option>
+      <option value="medium">Qualidade média</option>
+      <option value="low">Baixa qualidade (menor arquivo)</option>
+    </select>
+    <button class="export-btn" id="exportBtn" disabled onclick="startExport()">
+      <span>⚡</span> Exportar vídeo
+    </button>
+    <a class="download-btn hidden" id="downloadBtn">
+      <span>⬇</span> Baixar
+    </a>
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">Processando…</div>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+// ── STATE ──
+const state = {
+  brightness:  0,
+  contrast:    0,
+  blacks:      0,
+  saturation:  0,
+  temperature: 0,
+  hue:         0,
+  sharpness:   0,
+  vignette:    0,
+};
+
+let videoEl, canvasEl, ctx;
+let animFrame = null;
+let isPlaying = false;
+let isExporting = false;
+let mediaRecorder = null;
+let recordedChunks = [];
+let videoLoaded = false;
+
+// ── INIT ──
+window.addEventListener('DOMContentLoaded', () => {
+  videoEl    = document.getElementById('videoHidden');
+  canvasEl   = document.getElementById('previewCanvas');
+  ctx        = canvasEl.getContext('2d', { willReadFrequently: true });
+
+  // sliders
+  const sliders = ['brightness','contrast','blacks','saturation','temperature','hue','sharpness','vignette'];
+  sliders.forEach(name => {
+    const el = document.getElementById('sl-' + name);
+    el.addEventListener('input', () => {
+      state[name] = +el.value;
+      updateVal(name, el.value);
+    });
+  });
+
+  // drag & drop
+  const drop = document.getElementById('dropZone');
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+  drop.addEventListener('drop', e => {
+    e.preventDefault();
+    drop.classList.remove('drag');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('video/')) loadVideo(file);
+  });
+  drop.addEventListener('click', e => {
+    if (!videoLoaded) document.getElementById('fileInput').click();
+  });
+  document.getElementById('fileInput').addEventListener('change', e => {
+    if (e.target.files[0]) loadVideo(e.target.files[0]);
+  });
+
+  // seek bar
+  document.getElementById('seekBar').addEventListener('input', e => {
+    if (!videoLoaded) return;
+    videoEl.currentTime = (e.target.value / 100) * videoEl.duration;
+  });
+
+  // video time update
+  videoEl.addEventListener('timeupdate', updateTime);
+  videoEl.addEventListener('ended', () => {
+    isPlaying = false;
+    document.getElementById('playBtn').textContent = '▶';
+  });
+});
+
+function updateVal(name, val) {
+  const el = document.getElementById('val-' + name);
+  el.textContent = +val > 0 ? '+' + val : val;
+  el.className = 'slider-val' + (+val === 0 ? ' zero' : '');
+}
+
+// ── VIDEO LOAD ──
+function loadVideo(file) {
+  const url = URL.createObjectURL(file);
+  videoEl.src = url;
+  videoEl.muted = true;
+  videoEl.load();
+
+  videoEl.addEventListener('loadedmetadata', () => {
+    const vw = videoEl.videoWidth;
+    const vh = videoEl.videoHeight;
+
+    // canvas at preview scale — cap at 900px wide
+    const scale = Math.min(1, 900 / vw, 600 / vh);
+    canvasEl.width  = Math.round(vw * scale);
+    canvasEl.height = Math.round(vh * scale);
+    canvasEl.dataset.scaleW = vw;
+    canvasEl.dataset.scaleH = vh;
+
+    // show canvas
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('canvasWrap').style.display = 'flex';
+    document.getElementById('dropZone').classList.add('has-video');
+    document.getElementById('playbar').style.display = '';
+    document.getElementById('exportBtn').disabled = false;
+    videoLoaded = true;
+
+    // file info
+    const mb = (file.size / 1024 / 1024).toFixed(1);
+    document.getElementById('fileInfo').textContent = `${vw}×${vh} · ${mb}MB`;
+    document.getElementById('exportSub').textContent = `${vw}×${vh} · ${fmtTime(videoEl.duration)}`;
+
+    // first frame
+    videoEl.currentTime = 0;
+    videoEl.addEventListener('seeked', drawOnce, { once: true });
+    startLoop();
+  }, { once: true });
+}
+
+function startLoop() {
+  if (animFrame) cancelAnimationFrame(animFrame);
+  const loop = () => {
+    if (!isExporting) drawFrame();
+    animFrame = requestAnimationFrame(loop);
+  };
+  animFrame = requestAnimationFrame(loop);
+}
+
+// ── DRAW ──
+function buildFilter() {
+  const b = 1 + state.brightness / 100;
+  const c = 1 + state.contrast   / 100;
+  const s = 1 + state.saturation / 100;
+  const h = state.hue;
+  // temperature: warm adds sepia + slight hue, cool shifts hue blue-ward
+  const tempVal = state.temperature;
+  let tempFilter = '';
+  if (tempVal > 0) {
+    const t = tempVal / 100;
+    tempFilter = `sepia(${t * 0.35})`;
+  } else if (tempVal < 0) {
+    const t = -tempVal / 100;
+    tempFilter = `hue-rotate(${t * 25}deg)`;
+  }
+
+  // blacks: simulate by adjusting brightness in shadows via contrast
+  const bk = state.blacks;
+  const bkBrightness = b + bk * 0.003;
+  const bkContrast   = c + bk * 0.004;
+
+  return `brightness(${bkBrightness.toFixed(3)}) contrast(${bkContrast.toFixed(3)}) saturate(${s.toFixed(3)}) hue-rotate(${h}deg) ${tempFilter}`;
+}
+
+function drawFrame() {
+  if (!videoLoaded || videoEl.readyState < 2) return;
+  const w = canvasEl.width, h = canvasEl.height;
+
+  ctx.filter = buildFilter();
+  ctx.drawImage(videoEl, 0, 0, w, h);
+  ctx.filter = 'none';
+
+  if (state.sharpness > 0) applySharpening(ctx, w, h, state.sharpness);
+  if (state.vignette  > 0) applyVignette(ctx, w, h, state.vignette);
+}
+
+function drawOnce() { drawFrame(); }
+
+// ── SHARPENING: unsharp mask convolution ──
+function applySharpening(ctx, w, h, amount) {
+  const k = amount / 100 * 0.7;
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const src = new Uint8ClampedArray(imageData.data);
+  const dst = imageData.data;
+
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const i = (y * w + x) * 4;
+      for (let c = 0; c < 3; c++) {
+        const center = src[i + c];
+        const top    = src[((y - 1) * w + x) * 4 + c];
+        const bot    = src[((y + 1) * w + x) * 4 + c];
+        const lft    = src[(y * w + x - 1) * 4 + c];
+        const rgt    = src[(y * w + x + 1) * 4 + c];
+        dst[i + c]   = Math.max(0, Math.min(255,
+          (1 + 4 * k) * center - k * (top + bot + lft + rgt)
+        ));
+      }
+      // alpha unchanged
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
+// ── VIGNETTE ──
+function applyVignette(ctx, w, h, amount) {
+  const cx = w / 2, cy = h / 2;
+  const r0 = Math.min(w, h) * 0.35;
+  const r1 = Math.max(w, h) * 0.75;
+  const grad = ctx.createRadialGradient(cx, cy, r0, cx, cy, r1);
+  const alpha = amount / 100 * 0.75;
+  grad.addColorStop(0, 'rgba(0,0,0,0)');
+  grad.addColorStop(1, `rgba(0,0,0,${alpha.toFixed(2)})`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+}
+
+// ── PLAYBACK ──
+function togglePlay() {
+  if (!videoLoaded) return;
+  if (isPlaying) {
+    videoEl.pause();
+    isPlaying = false;
+    document.getElementById('playBtn').textContent = '▶';
+  } else {
+    videoEl.play();
+    isPlaying = true;
+    document.getElementById('playBtn').textContent = '⏸';
+  }
+}
+
+function updateTime() {
+  if (!videoEl.duration) return;
+  const cur = videoEl.currentTime;
+  const dur = videoEl.duration;
+  document.getElementById('timeDisplay').textContent = `${fmtTime(cur)} / ${fmtTime(dur)}`;
+  document.getElementById('seekBar').value = (cur / dur * 100).toFixed(1);
+}
+
+function fmtTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60).toString().padStart(2, '0');
+  return `${m}:${sec}`;
+}
+
+// ── PRESETS ──
+const presets = {
+  tiktok:    { brightness: 8,  contrast: 12, blacks:  5,  saturation: 25, temperature: 15, hue: 0,   sharpness: 30, vignette: 15 },
+  instagram: { brightness: 15, contrast: 5,  blacks: -5,  saturation: 10, temperature: 8,  hue: 0,   sharpness: 20, vignette: 8  },
+  cinema:    { brightness: -8, contrast: 25, blacks: -20, saturation:-15, temperature:-20, hue: 0,   sharpness: 15, vignette: 45 },
+  vivid:     { brightness: 5,  contrast: 20, blacks:  0,  saturation: 50, temperature:  0, hue: 0,   sharpness: 40, vignette: 0  },
+  night:     { brightness:-15, contrast: 30, blacks:-30,  saturation: 5,  temperature:-10, hue: 0,   sharpness: 25, vignette: 60 },
+  retro:     { brightness: 5,  contrast: 10, blacks: 10,  saturation:-20, temperature: 35, hue: 8,   sharpness: 10, vignette: 30 },
+};
+
+function applyPreset(name) {
+  const p = presets[name];
+  if (!p) return;
+  Object.keys(p).forEach(k => {
+    state[k] = p[k];
+    const sl = document.getElementById('sl-' + k);
+    if (sl) sl.value = p[k];
+    updateVal(k, p[k]);
+  });
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+}
+
+function resetAll() {
+  const keys = Object.keys(state);
+  keys.forEach(k => {
+    state[k] = 0;
+    const sl = document.getElementById('sl-' + k);
+    if (sl) sl.value = 0;
+    updateVal(k, 0);
+  });
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+}
+
+// ── EXPORT ──
+async function startExport() {
+  if (!videoLoaded || isExporting) return;
+  isExporting = true;
+
+  // Reset download button
+  const dl = document.getElementById('downloadBtn');
+  dl.classList.add('hidden');
+  dl.href = '#';
+
+  // Show progress
+  document.getElementById('progressWrap').classList.add('visible');
+  document.getElementById('progressFill').style.width = '0%';
+  document.getElementById('progressLabel').textContent = 'Iniciando…';
+  document.getElementById('exportBtn').disabled = true;
+
+  // Build export canvas at native resolution (capped at 1280px for perf)
+  const nativeW = +canvasEl.dataset.scaleW;
+  const nativeH = +canvasEl.dataset.scaleH;
+  const maxW = 1280, maxH = 720;
+  const sc = Math.min(1, maxW / nativeW, maxH / nativeH);
+  const expW = Math.round(nativeW * sc);
+  const expH = Math.round(nativeH * sc);
+
+  const expCanvas = document.createElement('canvas');
+  expCanvas.width = expW;
+  expCanvas.height = expH;
+  const expCtx = expCanvas.getContext('2d', { willReadFrequently: true });
+
+  // Bitrate from quality select
+  const quality = document.getElementById('qualitySelect').value;
+  const bitrate = { high: 8_000_000, medium: 4_000_000, low: 1_500_000 }[quality];
+
+  // Restart video from beginning
+  videoEl.pause();
+  isPlaying = false;
+  document.getElementById('playBtn').textContent = '▶';
+  videoEl.currentTime = 0;
+  await new Promise(r => videoEl.addEventListener('seeked', r, { once: true }));
+
+  // Setup MediaRecorder
+  recordedChunks = [];
+  const stream = expCanvas.captureStream(30);
+  const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+    ? 'video/webm;codecs=vp9'
+    : 'video/webm';
+
+  mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: bitrate });
+  mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+  mediaRecorder.onstop = finishExport;
+  mediaRecorder.start(100);
+
+  // Draw loop for export
+  const dur = videoEl.duration;
+  videoEl.play();
+
+  const exportLoop = () => {
+    if (!isExporting) { mediaRecorder.stop(); return; }
+
+    expCtx.filter = buildFilter();
+    expCtx.drawImage(videoEl, 0, 0, expW, expH);
+    expCtx.filter = 'none';
+    if (state.sharpness > 0) applySharpening(expCtx, expW, expH, state.sharpness);
+    if (state.vignette  > 0) applyVignette(expCtx, expW, expH, state.vignette);
+
+    const prog = videoEl.currentTime / dur;
+    document.getElementById('progressFill').style.width = (prog * 100).toFixed(1) + '%';
+    document.getElementById('progressLabel').textContent =
+      `${fmtTime(videoEl.currentTime)} / ${fmtTime(dur)}`;
+
+    if (videoEl.ended || videoEl.currentTime >= dur - 0.05) {
+      mediaRecorder.stop();
+      return;
+    }
+    requestAnimationFrame(exportLoop);
+  };
+  requestAnimationFrame(exportLoop);
+}
+
+function finishExport() {
+  isExporting = false;
+  videoEl.pause();
+  isPlaying = false;
+  document.getElementById('playBtn').textContent = '▶';
+
+  const blob = new Blob(recordedChunks, { type: 'video/webm' });
+  const url  = URL.createObjectURL(blob);
+  const mb   = (blob.size / 1024 / 1024).toFixed(1);
+
+  const dl = document.getElementById('downloadBtn');
+  dl.href = url;
+  dl.download = 'lumiq-enhanced.webm';
+  dl.classList.remove('hidden');
+
+  document.getElementById('progressFill').style.width = '100%';
+  document.getElementById('progressLabel').textContent = `Pronto · ${mb}MB`;
+  document.getElementById('exportBtn').disabled = false;
+
+  // restart preview loop
+  videoEl.currentTime = 0;
+  startLoop();
+}
+</script>
+</body>
+</html>
